@@ -12,34 +12,40 @@ export async function GET() {
     const now = new Date();
     const monthsToShow = 6;
 
-    // Calculate the start date for the chart
     const start = new Date(now.getFullYear(), now.getMonth() - (monthsToShow - 1), 1);
 
-    // Fetch all logs since start date
+    // Get all logs since start
     const logs = await prisma.aIUsage.findMany({
-      where: {
-        userId: Number(userId),
-        createdAt: { gte: start },
-      },
+      where: { userId: Number(userId), createdAt: { gte: start } },
+      orderBy: { createdAt: "asc" },
     });
 
-    // Aggregate logs per month
+    // Aggregate per month
     const aggregate: Record<string, number> = {};
     logs.forEach((log) => {
-      const date = new Date(log.createdAt);
-      const month = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-      aggregate[month] = (aggregate[month] || 0) + 1;
+      const d = new Date(log.createdAt);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      aggregate[key] = (aggregate[key] || 0) + 1;
     });
 
-    // Build ordered array for last 6 months, zero-filled if needed
-    const result: { month: string; count: number }[] = [];
+    const monthlyStats: { month: string; count: number }[] = [];
     for (let i = monthsToShow - 1; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      result.push({ month: key, count: aggregate[key] ?? 0 });
+      monthlyStats.push({ month: key, count: aggregate[key] ?? 0 });
     }
 
-    return NextResponse.json(result);
+    // Total logs
+    const totalLogs = await prisma.aIUsage.count({ where: { userId: Number(userId) } });
+
+    // Last 3 logs
+    const lastLogs = await prisma.aIUsage.findMany({
+      where: { userId: Number(userId) },
+      orderBy: { createdAt: "desc" },
+      take: 3,
+    });
+
+    return NextResponse.json({ monthlyStats, totalLogs, lastLogs });
   } catch {
     return NextResponse.json({ error: "Invalid token" }, { status: 401 });
   }
