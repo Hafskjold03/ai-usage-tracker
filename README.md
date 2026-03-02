@@ -25,7 +25,7 @@ JWT_SECRET="my-super-cool-secret-key"
 
 ### Initialize the database
 
-Run this to migrate the database (MIGHT NOT BE NEEDED):
+Run this to migrate the database:
 
 ```bash
 npx prisma migrate dev --name init
